@@ -196,8 +196,16 @@
         <div class="field">
           <label for="contact">연락처 <span class="req">*</span></label>
           <input id="contact" name="contact" required inputmode="tel" autocomplete="tel"
-                 placeholder="휴대폰 번호 또는 이메일">
-          <div class="err">연락 가능한 번호나 이메일을 입력해 주세요.</div>
+                 placeholder="예) 010-1234-5678">
+          <div class="err">연락 가능한 휴대폰 번호를 입력해 주세요.</div>
+        </div>
+
+        <div class="field">
+          <label for="email">이메일 <span class="req">*</span></label>
+          <input id="email" name="email" required inputmode="email" autocomplete="email"
+                 placeholder="예) gift@company.co.kr">
+          <div class="hint">맞춤 제안서를 이 이메일로 보내드립니다.</div>
+          <div class="err">제안서를 받으실 이메일 주소를 입력해 주세요.</div>
         </div>
 
         <div class="grid2">
@@ -311,7 +319,7 @@
   var form = document.getElementById('quoteForm');
   var msg = document.getElementById('formMsg');
   var btn = document.getElementById('submitBtn');
-  var REQUIRED = ['company', 'manager', 'contact', 'qty'];
+  var REQUIRED = ['company', 'manager', 'contact', 'email', 'qty'];
 
   function setInvalid(name, bad) {
     document.getElementById(name).closest('.field').classList.toggle('invalid', bad);
@@ -325,6 +333,9 @@
 
   function validate(data) {
     var bad = REQUIRED.filter(function (k) { return !String(data[k] || '').trim(); });
+    if (data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(data.email).trim())) {
+      bad.push('email');
+    }
     if (badProductCode(data.product_code)) { bad.push('product_code'); }
     REQUIRED.concat(['product_code']).forEach(function (k) {
       setInvalid(k, bad.indexOf(k) !== -1);
