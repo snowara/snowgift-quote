@@ -95,6 +95,30 @@
   #formMsg.ng{display:block;background:#fff2f2;color:#b32a2f;border:1px solid #f0c8ca}
   .privacy{font-size:12.5px;color:var(--sub);margin-top:14px}
 
+  /* 개인정보 고지 박스 — 체크박스 대신 접이식 고지(A안). 제출 전 마찰을 늘리지 않으면서
+     제15조제2항 고지사항을 전부 노출한다. */
+  .notice{border:1px solid var(--line);border-radius:2px;background:var(--soft);margin-bottom:17px}
+  .notice summary{cursor:pointer;padding:12px 14px;font-size:13px;color:var(--ink);
+                  font-weight:500;list-style:none}
+  .notice summary::-webkit-details-marker{display:none}
+  .notice summary::before{content:"▸ ";color:var(--point);font-weight:700}
+  .notice[open] summary::before{content:"▾ "}
+  .notice summary:hover{background:#f0f0f3}
+  .notice .body{padding:2px 16px 16px;font-size:12.5px;color:var(--sub);line-height:1.7;
+                border-top:1px solid var(--line);margin-top:2px}
+  .notice .body b{color:var(--ink)}
+  .notice .body dl{margin:12px 0 0}
+  .notice .body dt{font-weight:700;color:var(--ink);margin-top:11px}
+  .notice .body dd{margin:3px 0 0}
+  .notice a{color:var(--point);font-weight:700}
+
+  /* 선택 동의 — 미체크가 기본. 이걸 필수로 물리면 제22조제5항 위반이다. */
+  .consent{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);
+           padding:13px 14px;border-radius:2px;margin-bottom:17px}
+  .consent input{width:17px;height:17px;margin:2px 0 0;flex:0 0 auto}
+  .consent label{font-size:13px;font-weight:500;color:var(--ink);margin:0;cursor:pointer}
+  .consent .sub{display:block;font-size:12px;color:var(--sub);font-weight:400;margin-top:4px}
+
   .alt{margin-top:26px;padding-top:22px;border-top:1px dashed var(--line);font-size:13.5px;color:var(--sub)}
   .alt strong{color:var(--ink)}
   .alt a{color:var(--point);font-weight:700;text-decoration:none}
@@ -290,10 +314,62 @@
              자동완성이 알아보지 못하는 이름을 쓴다. -->
         <input class="hp" type="text" name="hp_ref" tabindex="-1" autocomplete="off" aria-hidden="true">
 
+        <!-- 선택 동의. 정보통신망법 제50조제1항은 광고성 정보에 '명시적 사전 동의'를 요구하고,
+             견적 문의 단계는 거래관계 예외가 적용되지 않는다 — 여기서 안 받으면 소급 획득이 불가능하다.
+             절대 필수로 만들지 말 것(제22조제5항 위반). -->
+        <div class="consent">
+          <input type="checkbox" id="marketing" name="marketing" value="Y">
+          <label for="marketing">
+            (선택) 신상품·기획전 안내를 이메일로 받겠습니다.
+            <span class="sub">동의하지 않으셔도 견적 회신에는 아무런 영향이 없습니다.
+              수집 항목: 담당자 성함·이메일 / 보유: 동의 철회 시까지 / 수신거부: snowara@snowara.com</span>
+          </label>
+        </div>
+
+        <details class="notice">
+          <summary>개인정보 수집·이용 안내 — 견적 회신을 위해 담당자 성함·연락처·이메일을 수집합니다.</summary>
+          <div class="body">
+            <dl>
+              <dt>수집하는 개인정보</dt>
+              <dd>담당자 성함, 연락처, 이메일 — 견적을 회신하기 위한 필수 항목입니다.<br>
+                  함께 저장되는 견적 정보: 회사·단체명, 품목, 예상 수량, 예산, 행사·기념일,
+                  상품코드, 희망 납기, 추가 문의</dd>
+
+              <dt>이용 목적</dt>
+              <dd>단체 판촉물 견적 산출, 견적 제안서 이메일 발송, 관련 문의 응대.
+                  이 목적 외의 용도로는 이용하지 않습니다.</dd>
+
+              <dt>보유·이용 기간</dt>
+              <dd><b>접수일로부터 3년</b> — 재문의·재발주 시 과거 견적 이력을 참조하기 위해 보유하며,
+                  기간이 지나면 지체 없이 파기합니다.</dd>
+
+              <dt>법적 근거 — 별도 동의 없이 수집합니다</dt>
+              <dd>「개인정보 보호법」 제15조제1항제4호(계약을 체결하는 과정에서 정보주체의 요청에 따른
+                  조치를 이행하기 위하여 필요한 경우)에 근거합니다. 위 항목은 견적 회신에 필요한
+                  최소한의 정보이며, 입력하지 않으시면 견적 회신이 어렵습니다.
+                  폼 대신 전화(010-9077-6830)나 이메일로도 요청하실 수 있습니다.</dd>
+
+              <dt>처리 위탁 및 국외 이전</dt>
+              <dd>접수 내용 보관 — Google LLC / 상품 후보 선정 — Anthropic PBC(미국).
+                  상품 후보 선정 과정에는 품목·수량·예산·행사·납기·추가 문의가 전송되며,
+                  <b>담당자 성함·연락처·이메일은 전송하지 않습니다.</b></dd>
+
+              <dt>추가 문의란 작성 시 유의</dt>
+              <dd>다른 분의 성함·연락처를 대신 적지 말아 주세요. 위 과정에서 함께 전송됩니다.</dd>
+
+              <dt>정보주체의 권리</dt>
+              <dd>열람·정정·삭제·처리정지를 언제든 요청하실 수 있습니다.
+                  snowara@snowara.com / 010-9077-6830 (개인정보 보호책임자: 박지호)</dd>
+            </dl>
+            <p style="margin:14px 0 0"><a href="privacy.html" target="_blank" rel="noopener">개인정보 처리방침 전문 보기 →</a></p>
+          </div>
+        </details>
+
         <button type="submit" class="btn" id="submitBtn">견적 요청 보내기</button>
         <div id="formMsg" role="status" aria-live="polite"></div>
         <div class="privacy">
-          입력하신 정보는 견적 회신 목적으로만 사용하며, 그 외 용도로 활용하지 않습니다.
+          견적 요청을 보내시면 위 안내에 따라 견적 회신 목적으로 정보가 처리됩니다.
+          자세한 내용은 <a href="privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a>을 확인해 주세요.
         </div>
       </form>
 
@@ -314,7 +390,8 @@
     <div class="biz">
       <span>주식회사 스노우아라</span>
       <span>대표 : 박지호</span>
-      <span>개인정보관리책임자 : 박지호</span><br>
+      <span>개인정보 보호책임자 : 박지호</span>
+      <span><a href="privacy.html" style="color:var(--point);font-weight:700">개인정보 처리방침</a></span><br>
       <span>사업자등록번호 : 154-86-03079</span>
       <span>통신판매업 : 제 2024-경기광명-0286 호</span><br>
       <span>사업장 : 경기도 광명시 새빛공원로 67 B동 1009호</span><br>
@@ -332,6 +409,10 @@
 
   // 배포 후 Apps Script 웹앱 URL로 교체. 비어 있으면 전송하지 않고 대체 연락처를 안내한다.
   var ENDPOINT = 'https://script.google.com/macros/s/AKfycbz0fdB0-7qe-JE0ZhDH7S6V6EkyTQ8g16DPJqULPIrtlIKdBsnw4R8IvZSohFebzEErFA/exec';
+
+  // 고지문을 고칠 때마다 올릴 것 — 접수 건이 어느 고지문을 보고 들어왔는지의 유일한 근거다.
+  // privacy.html의 버전 표기와 반드시 일치시킨다.
+  var NOTICE_VERSION = 'PP-2026-08-23';
 
   // 전송 실패 안내는 여러 곳에서 같은 문구를 쓴다
   var FALLBACK = '전송에 실패했습니다. 번거로우시겠지만 010-9077-6830 로 연락 주시면 바로 처리해 드리겠습니다.';
@@ -424,6 +505,13 @@
 
     data.source = document.referrer || 'direct';
     data.submitted_at = new Date().toISOString();
+
+    // 체크박스는 미체크 시 FormData에 키 자체가 없다 → 빈칸이 되어 "고지 이전 접수분"과
+    // 구분이 안 된다. 'N'을 명시적으로 남긴다.
+    data.marketing = form.marketing.checked ? 'Y' : 'N';
+    // 동의 체크박스가 없는 방식(A안)이라, 어떤 고지문을 보고 제출했는지는 회사가 입증해야 한다
+    // (제22조제3항 후단, 입증책임 회사). 고지 버전을 접수와 함께 남긴다.
+    data.notice_version = NOTICE_VERSION;
 
     if (!ENDPOINT) {
       show('ng', '접수 서버 연결 준비 중입니다. 010-9077-6830 또는 snowara@snowara.com 으로 연락 주시면 바로 도와드리겠습니다.');
