@@ -89,6 +89,8 @@
   .field.invalid input,.field.invalid select{border-color:var(--point);background:#fffafa}
   .formbox .btn{width:100%;margin-top:8px;font-size:17px;padding:17px}
   #formMsg{margin-top:15px;font-size:14px;font-weight:700;display:none;padding:14px;border-radius:2px}
+  /* 전송 중은 성공이 아니다 — 초록을 쓰면 응답이 안 와도 접수된 줄 안다 */
+  #formMsg.busy{display:block;background:#f2f4f7;color:#333;border:1px solid #d8dce3}
   #formMsg.ok{display:block;background:#f0f8f2;color:#1f6b3a;border:1px solid #c5e2ce}
   #formMsg.ng{display:block;background:#fff2f2;color:#b32a2f;border:1px solid #f0c8ca}
   .privacy{font-size:12.5px;color:var(--sub);margin-top:14px}
@@ -180,7 +182,16 @@
     <p class="lede">아래 항목만 채워 주시면 됩니다. 예산을 적어 주시면 그 안에서 구성해 제안드립니다.</p>
 
     <div class="formbox">
-      <form id="quoteForm" novalidate>
+      <!-- method="post" 필수: 스크립트가 죽으면 브라우저 기본 동작이 GET 자체이동이라
+           고객 연락처·이메일이 주소창·방문기록·Referer 헤더에 노출된다 -->
+      <form id="quoteForm" method="post" novalidate>
+        <noscript>
+          <div style="background:#fff2f2;color:#b32a2f;border:1px solid #f0c8ca;
+                      padding:14px;border-radius:2px;font-weight:700;margin-bottom:17px">
+            브라우저에서 자바스크립트가 꺼져 있어 이 폼으로는 접수되지 않습니다.
+            010-9077-6830 또는 snowara@snowara.com 으로 연락 주시면 바로 도와드리겠습니다.
+          </div>
+        </noscript>
         <div class="grid2">
           <div class="field">
             <label for="company">회사·단체명 <span class="req">*</span></label>
@@ -198,7 +209,7 @@
           <label for="contact">연락처 <span class="req">*</span></label>
           <input id="contact" name="contact" required inputmode="tel" autocomplete="tel"
                  placeholder="예) 010-1234-5678">
-          <div class="err">연락 가능한 휴대폰 번호를 입력해 주세요.</div>
+          <div class="err">연락 가능한 번호를 입력해 주세요. (숫자 8자리 이상)</div>
         </div>
 
         <div class="field">
@@ -274,7 +285,10 @@
           <textarea id="memo" name="memo" placeholder="로고 인쇄 필요 여부, 배송지 분산, 예산 범위 등 자유롭게 적어 주세요."></textarea>
         </div>
 
-        <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <!-- 필드명 주의: name="website"는 브라우저·비밀번호 관리자가 URL을 자동완성해 넣는
+             대표적 이름이라(autocomplete=off는 자주 무시됨) 정상 고객이 봇으로 걸렸다.
+             자동완성이 알아보지 못하는 이름을 쓴다. -->
+        <input class="hp" type="text" name="hp_ref" tabindex="-1" autocomplete="off" aria-hidden="true">
 
         <button type="submit" class="btn" id="submitBtn">견적 요청 보내기</button>
         <div id="formMsg" role="status" aria-live="polite"></div>
@@ -343,9 +357,16 @@
     return itemSel.value === '미정';
   }
 
+  // 연락처는 회신의 주 경로다. 내선·지역번호를 막지 않도록 상한 없이 자릿수만 본다
+  function badContact(value) {
+    return String(value || '').replace(/\D/g, '').length < 8;
+  }
+
   function syncBudgetReq() {
     var need = needsBudget();
     budgetReq.style.display = need ? '' : 'none';
+    // 필수가 아니게 되면 앞서 남은 빨간 오류 표시를 걷어낸다(안 걷으면 별표는 없는데 에러만 남음)
+    if (!need) { setInvalid('budget', false); }
     budgetHint.textContent = need
       ? '추천에 필요합니다. 대략적인 총 예산이어도 괜찮습니다. (VAT 별도 기준)'
       : '총 예산을 적어 주시면 예산 안에서 구성해 제안드립니다. (VAT 별도 기준)';
@@ -368,6 +389,7 @@
         !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(data.email).trim())) {
       format.push('email');
     }
+    if (String(data.contact || '').trim() && badContact(data.contact)) { format.push('contact'); }
     if (badProductCode(data.product_code)) { format.push('product_code'); }
 
     var bad = missing.concat(format);
@@ -391,7 +413,7 @@
     new FormData(form).forEach(function (v, k) { data[k] = String(v).trim(); });
 
     // 봇이 채우는 숨은 필드. 자동완성 오탐일 수 있으므로 연락 경로는 남긴다
-    if (data.website) { show('ng', FALLBACK); return; }
+    if (data.hp_ref) { show('ng', FALLBACK); return; }
 
     var bad = validate(data);
     if (bad.all.length) {
@@ -410,13 +432,24 @@
 
     sending = true;
     btn.disabled = true;
-    show('ok', '전송 중입니다...');
+    show('busy', '전송 중입니다...');   // 초록(ok) 금지 — 응답이 안 와도 접수된 줄 알게 된다
 
+    // 응답이 영영 안 오는 경우(모바일 음영지역 등) 폼이 잠긴 채 남지 않도록 상한을 둔다
+    var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 15000) : null;
+    function unlock() {
+      if (timer) { clearTimeout(timer); }
+      sending = false;
+      btn.disabled = false;
+    }
+
+    try {
     // Apps Script는 text/plain 으로 보내야 CORS 프리플라이트를 피할 수 있다
     fetch(ENDPOINT, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      signal: ctrl ? ctrl.signal : undefined
     })
       .then(function (res) { return res.json(); })
       .then(function (out) {
@@ -429,7 +462,12 @@
         }
       })
       .catch(function () { show('ng', FALLBACK); })
-      .finally(function () { sending = false; btn.disabled = false; });
+      .finally(unlock);
+    } catch (err) {
+      // fetch 자체가 없거나 동기 예외를 던지는 환경 — 폼을 잠긴 채 방치하지 않는다
+      unlock();
+      show('ng', FALLBACK);
+    }
   });
 })();
 </script>
