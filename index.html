@@ -135,7 +135,7 @@
 <div class="hero">
   <div class="wrap">
     <h1>수량과 납기만 알려주시면<br><em>견적</em>을 잡아 드립니다</h1>
-    <p>품목이 정해지지 않았어도 괜찮습니다. 인원과 예산만 알려주시면 <span class="hi">AI가 예산에 맞는 후보 상품을 추천</span>해 드립니다.</p>
+    <p>품목이 정해지지 않았어도 괜찮습니다. 수량과 예산만 알려주시면 <span class="hi">AI가 예산에 맞는 후보 상품을 추천</span>해 드립니다.</p>
     <ul class="badges">
       <li><b>AI 상품 추천</b></li>
       <li>수량 구간별 <b>실단가 안내</b></li>
@@ -240,9 +240,10 @@
         </div>
 
         <div class="field">
-          <label for="budget">예산 (원)</label>
+          <label for="budget">예산 (원) <span class="req" id="budgetReq">*</span></label>
           <input id="budget" name="budget" inputmode="numeric" placeholder="예) 3,000,000">
-          <div class="hint">총 예산을 적어 주시면 예산 안에서 구성해 제안드립니다. (VAT 별도 기준)</div>
+          <div class="hint" id="budgetHint">총 예산을 적어 주시면 예산 안에서 구성해 제안드립니다. (VAT 별도 기준)</div>
+          <div class="err">추천을 받으시려면 예산을 적어 주세요. 대략적인 금액이어도 괜찮습니다.</div>
         </div>
 
         <div class="field">
@@ -318,13 +319,36 @@
   // 배포 후 Apps Script 웹앱 URL로 교체. 비어 있으면 전송하지 않고 대체 연락처를 안내한다.
   var ENDPOINT = 'https://script.google.com/macros/s/AKfycbz0fdB0-7qe-JE0ZhDH7S6V6EkyTQ8g16DPJqULPIrtlIKdBsnw4R8IvZSohFebzEErFA/exec';
 
+  // 전송 실패 안내는 여러 곳에서 같은 문구를 쓴다
+  var FALLBACK = '전송에 실패했습니다. 번거로우시겠지만 010-9077-6830 로 연락 주시면 바로 처리해 드리겠습니다.';
+
   var form = document.getElementById('quoteForm');
   var msg = document.getElementById('formMsg');
   var btn = document.getElementById('submitBtn');
+  var itemSel = document.getElementById('item');
+  var budgetReq = document.getElementById('budgetReq');
+  var budgetHint = document.getElementById('budgetHint');
   var REQUIRED = ['company', 'manager', 'contact', 'email', 'qty'];
+  var CHECKED = REQUIRED.concat(['budget', 'product_code']);
+
+  // 제출 진행 중 잠금. 버튼 disabled 만으로는 입력창에서의 Enter 연타를 막지 못한다
+  var sending = false;
 
   function setInvalid(name, bad) {
     document.getElementById(name).closest('.field').classList.toggle('invalid', bad);
+  }
+
+  // 품목을 "추천 요청"으로 두면 예산이 있어야 예산에 맞는 후보를 고를 수 있다
+  function needsBudget() {
+    return itemSel.value === '미정';
+  }
+
+  function syncBudgetReq() {
+    var need = needsBudget();
+    budgetReq.style.display = need ? '' : 'none';
+    budgetHint.textContent = need
+      ? '추천에 필요합니다. 대략적인 총 예산이어도 괜찮습니다. (VAT 별도 기준)'
+      : '총 예산을 적어 주시면 예산 안에서 구성해 제안드립니다. (VAT 별도 기준)';
   }
 
   // 상품코드는 선택 항목이지만, 적었다면 숫자가 하나는 있어야 링크를 만들 수 있다
@@ -333,16 +357,22 @@
     return v !== '' && !/\d{4,9}/.test(v);
   }
 
+  // 빠뜨린 항목(missing)과 형식이 틀린 항목(format)을 구분해야
+  // 선택 항목인 상품코드 오류에 "필수 항목"이라고 안내하는 일이 없다
   function validate(data) {
-    var bad = REQUIRED.filter(function (k) { return !String(data[k] || '').trim(); });
-    if (data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(data.email).trim())) {
-      bad.push('email');
+    var missing = REQUIRED.filter(function (k) { return !String(data[k] || '').trim(); });
+    if (needsBudget() && !String(data.budget || '').trim()) { missing.push('budget'); }
+
+    var format = [];
+    if (String(data.email || '').trim() &&
+        !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(data.email).trim())) {
+      format.push('email');
     }
-    if (badProductCode(data.product_code)) { bad.push('product_code'); }
-    REQUIRED.concat(['product_code']).forEach(function (k) {
-      setInvalid(k, bad.indexOf(k) !== -1);
-    });
-    return bad;
+    if (badProductCode(data.product_code)) { format.push('product_code'); }
+
+    var bad = missing.concat(format);
+    CHECKED.forEach(function (k) { setInvalid(k, bad.indexOf(k) !== -1); });
+    return { missing: missing, all: bad };
   }
 
   function show(kind, text) {
@@ -350,19 +380,23 @@
     msg.textContent = text;
   }
 
+  itemSel.addEventListener('change', syncBudgetReq);
+  syncBudgetReq();
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    if (sending) { return; }
 
     var data = {};
     new FormData(form).forEach(function (v, k) { data[k] = String(v).trim(); });
 
-    // 봇이 채우는 숨은 필드 — 값이 있으면 조용히 무시한다
-    if (data.website) { return; }
+    // 봇이 채우는 숨은 필드. 자동완성 오탐일 수 있으므로 연락 경로는 남긴다
+    if (data.website) { show('ng', FALLBACK); return; }
 
     var bad = validate(data);
-    if (bad.length) {
-      show('ng', '필수 항목을 확인해 주세요.');
-      document.getElementById(bad[0]).focus();
+    if (bad.all.length) {
+      show('ng', bad.missing.length ? '필수 항목을 확인해 주세요.' : '입력하신 내용을 확인해 주세요.');
+      document.getElementById(bad.all[0]).focus();
       return;
     }
 
@@ -374,6 +408,7 @@
       return;
     }
 
+    sending = true;
     btn.disabled = true;
     show('ok', '전송 중입니다...');
 
@@ -387,15 +422,14 @@
       .then(function (out) {
         if (out && out.ok) {
           form.reset();
+          syncBudgetReq();   // reset 하면 품목이 "추천 요청"으로 돌아가므로 표시도 되돌린다
           show('ok', '접수되었습니다. 영업일 기준 1일 이내에 연락드리겠습니다.');
         } else {
           throw new Error((out && out.error) || 'unknown');
         }
       })
-      .catch(function () {
-        show('ng', '전송에 실패했습니다. 번거로우시겠지만 010-9077-6830 로 연락 주시면 바로 처리해 드리겠습니다.');
-      })
-      .finally(function () { btn.disabled = false; });
+      .catch(function () { show('ng', FALLBACK); })
+      .finally(function () { sending = false; btn.disabled = false; });
   });
 })();
 </script>
