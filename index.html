@@ -511,7 +511,10 @@
       return;
     }
 
-    data.source = document.referrer || 'direct';
+    // 유입 경로: 채널 태그(?src= 또는 ?utm_source=) 우선, referrer 폴백.
+    // 카카오·인스타 인앱 브라우저는 referrer가 비기 일쑤라 URL 태그가 유일하게 살아남는 신호다.
+    var q = new URLSearchParams(location.search);
+    data.source = (q.get('src') || q.get('utm_source') || '') + '|' + (document.referrer || 'direct');
     data.submitted_at = new Date().toISOString();
 
     // 체크박스는 미체크 시 FormData에 키 자체가 없다 → 빈칸이 되어 "고지 이전 접수분"과
